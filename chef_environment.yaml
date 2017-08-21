@@ -1,0 +1,61 @@
+---
+  - hosts: all
+    gather_facts: yes
+    become: yes
+
+    tasks:
+
+      - name: Add docker yum repo
+        yum_repository:
+          name: Docker
+          description: Docker-Yum-Repository
+          baseurl: "https://yum.dockerproject.org/repo/main/centos/7"
+          enabled: yes
+          gpgcheck: yes
+          gpgkey: "https://yum.dockerproject.org/gpg"
+
+      - name: Install docker
+        yum:
+          name: [ "docker" ]
+          state: latest
+
+      - name: Get docker-compose
+        shell: curl -L https://github.com/docker/compose/releases/download/1.14.0/docker-compose-$(uname -s)-$(uname -m) -o /usr/local/bin/docker-compose
+        args:
+          creates: /usr/local/bin/docker-compose
+
+      - name: Ensure docker-compose is executable
+        file:
+          path: /usr/local/bin/docker-compose
+          mode: 0755
+
+      - name: Ensure wget is installed
+        yum:
+          name: "wget"
+          state: "latest"
+
+      - name: Ensure /var/lib/docker is correctly owned
+        file:
+          path: /var/lib/docker
+          owner: dockerroot
+          group: dockerroot
+
+      - name: Get docker-compose file if it does not exist
+        command: wget https://chef-automate-artifacts.s3-us-west-2.amazonaws.com/stable/latest/pilot/docker-compose.yml
+        args:
+          chdir: /var/lib/docker
+          creates: /var/lib/docker/docker-compose.yml
+      
+      - name: Check if a docker-compose process is running
+        command: pgrep docker-compose
+        ignore_errors: yes
+        register: is_docker_compose_running
+
+      - name: Run docker compose
+        command: docker-compose up -d -s /bin/bash
+        args:
+          chdir: /var/lib/docker
+        environment:
+          PATH: "{{ ansible_env.PATH}}:/usr/local/bin"
+          DOCKER_HOST: "unix:///var/run/docker.sock"
+        when: is_docker_compose_running.rc != 0
