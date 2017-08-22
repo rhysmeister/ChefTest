@@ -5,6 +5,10 @@
 
     tasks:
 
+      #- name: Disable selinux
+      #  selinux:
+      #    state: "disabled"
+
       - name: Add docker yum repo
         yum_repository:
           name: Docker
@@ -16,8 +20,20 @@
 
       - name: Install docker
         yum:
-          name: [ "docker" ]
+          name: [ "docker-latest" ]
           state: latest
+
+      - name: Disable selinux in Docker dameon
+        lineinfile:
+          path: "/etc/sysconfig/docker-latest"
+          regexp: "^OPTIONS='--selinux-enabled'$"
+          line: "OPTIONS='--selinux-enabled=false'"
+
+      - name: Ensure docker daemon is running
+        service:
+          name: "docker-latest"
+          enabled: "yes"
+          state: "started"
 
       - name: Get docker-compose
         shell: curl -L https://github.com/docker/compose/releases/download/1.14.0/docker-compose-$(uname -s)-$(uname -m) -o /usr/local/bin/docker-compose
@@ -33,28 +49,39 @@
         yum:
           name: "wget"
           state: "latest"
-
-      - name: Ensure /var/lib/docker is correctly owned
+        # Why root and not dockerroot?
+      - name: Ensure docker directories are correctly owned
         file:
-          path: /var/lib/docker
-          owner: dockerroot
-          group: dockerroot
+          path: [ "/var/lib/docker", "/var/run/docker" ]
+          owner: "root"
+          group: "root"
+          recurse: "yes"
 
       - name: Get docker-compose file if it does not exist
         command: wget https://chef-automate-artifacts.s3-us-west-2.amazonaws.com/stable/latest/pilot/docker-compose.yml
         args:
-          chdir: /var/lib/docker
+          chdir: /var/lib/docker-latest
           creates: /var/lib/docker/docker-compose.yml
-      
+
       - name: Check if a docker-compose process is running
         command: pgrep docker-compose
         ignore_errors: yes
         register: is_docker_compose_running
 
+    #  - name: Add serve alias for foo user
+    #    lineinfile:
+    #      dest: /root/.bashrc
+    #      line: "alias docker='docker-latest'"
+    #      regexp: "^alias docker='docker-latest'$"
+    #      state: "present"
+    #      insertafter: EOF
+    #      create: "yes"
+
       - name: Run docker compose
-        command: docker-compose up -d -s /bin/bash
+        become_user: "root"
+        shell: docker-compose up -d
         args:
-          chdir: /var/lib/docker
+          chdir: /var/lib/docker-latest
         environment:
           PATH: "{{ ansible_env.PATH}}:/usr/local/bin"
           DOCKER_HOST: "unix:///var/run/docker.sock"
