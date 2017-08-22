@@ -32,3 +32,11 @@ Login with default credentials;
 u: admin
 p: password
 
+To execute the additonal docker command mentioned in the tutorial you should do that from inside the Vagrant created VM.
+
+From the ChefTest project folder cloned from git;
+
+```
+vagrant shh
+sudo docker run chefdemo/compliance-loader-pass:stable
+```
