@@ -1,4 +1,4 @@
-A simple setup to create an virtual environment to play with Chef as outlines at the folowing url: https://learn.chef.io/modules/chef-automate-pilot/scan-for-compliance#/
+A simple setup to create an virtual environment to play with Chef Automate as outlines at the folowing url: https://learn.chef.io/modules/chef-automate-pilot/scan-for-compliance#/
 
 Please ensure Vagrant, VirtualBox, Ansible and git are installed before proceeding. 
 
